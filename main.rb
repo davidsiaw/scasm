@@ -66,6 +66,14 @@ class Machine
     @mr = @pc
   end
 
+  def pop2m
+    val = @stack[0]
+    @stack = @stack[1..-1] + [0]
+    loc = @stack[0]
+
+    @mem[loc] = val
+  end
+
   # pop stack and jump by an offset if zero flag is set
   # if zero flag not set does nothing
   # if popped value has high flag not set
@@ -116,9 +124,9 @@ class Machine
 
   def step
     instr = @instrs[@pc - @instr_start]
+    puts "0x#{pc_inspect} #{instr}"
     @pc += 1
     send(*instr)
-    p instr
   end
 
   def stack_inspect
@@ -176,19 +184,27 @@ class Machine
 end
 
 
-contents = File.read("main.asm")
+contents = File.read(ARGV[0])
 
 lines = contents.split("\n")
 
-
-
+current_pos = 0x400
 instrs = []
+
+# kind of a pseudo machine where
+# the asm isnt really in memory, but theres a phantom rom thing
+# that the PC reads from. it just dies if you set the pc to something
+# that makes no sense
 
 lines.each do |line|
   next unless line.start_with?('; ')
 
   if line.start_with?('; offset')
-    current_pos = line[8..-1].to_i
+    if line.end_with?('h')
+      current_pos = line[8..-2].to_i(16)
+    else
+      current_pos = line[8..-1].to_i
+    end
     next
   end
 
@@ -197,7 +213,7 @@ lines.each do |line|
   instrs << [toks[0].to_sym] + toks[1..-1]
 end
 
-machine = Machine.new(instrs)
+machine = Machine.new(instrs, current_pos)
 
 #p instrs
 
